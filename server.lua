@@ -16,7 +16,6 @@ Citizen.CreateThread(function()
 		print("[" .. GetCurrentResourceName() .. "] " .. "IMPORTANT: This resource must be named Badger_Discord_API for it to work properly with other scripts...");
 	end
 	print("[Badger_Discord_API] For support, make sure to join Badger's official Discord server: discord.gg/WjB5VFz");
-	print('^7[^2Zap-Hosting^7] ^3Use code ^5TheWolfBadger-4765 ^3at checkout for ^220% ^3off of selected services. Visit ^5https://zap-hosting.com/badger ^3to get started!');
 end)
 
 tracked = {}
@@ -30,11 +29,9 @@ AddEventHandler('Badger_Discord_API:PlayerLoaded', function()
 	local license = GetIdentifier(source, 'license');
 	if (tracked[license] == nil) then 
 		tracked[license] = true;
-		TriggerClientEvent('chatMessage', source, 
-		'^1[^5Badger_Discord_API^1] ^3The Discord API script was created by Badger. You may join his Discord at: ^6discord.gg/WjB5VFz')
 	end
 	TriggerClientEvent('chatMessage', source, 
-		'^7[^2Zap-Hosting^7] ^3Use code ^5TheWolfBadger-4765 ^3at checkout for ^220% ^3off of selected services. Visit ^5https://zap-hosting.com/badger ^3to get started!');
+		'^0[^5FIRP^0] ^3Make sure to read the rules in the discord! #📝rules-tos');
 end)
 
 card = '{"type":"AdaptiveCard","$schema":"http://adaptivecards.io/schemas/adaptive-card.json","version":"1.3","body":[{"type":"Image","url":"' .. Config.Splash.Header_IMG .. '","horizontalAlignment":"Center"},{"type":"Container","items":[{"type":"TextBlock","text":"Badger_Discord_API","wrap":true,"fontType":"Default","size":"ExtraLarge","weight":"Bolder","color":"Light","horizontalAlignment":"Center"},{"type":"TextBlock","text":"' .. Config.Splash.Heading1 .. '","wrap":true,"size":"Large","weight":"Bolder","color":"Light","horizontalAlignment":"Center"},{"type":"TextBlock","text":"' .. Config.Splash.Heading2 .. '","wrap":true,"color":"Light","size":"Medium","horizontalAlignment":"Center"},{"type":"ColumnSet","height":"stretch","minHeight":"100px","bleed":true,"horizontalAlignment":"Center","columns":[{"type":"Column","width":"stretch","items":[{"type":"ActionSet","actions":[{"type":"Action.OpenUrl","title":"Discord","url":"' .. Config.Splash.Discord_Link .. '","style":"positive"}],"horizontalAlignment":"Center"}],"height":"stretch"},{"type":"Column","width":"stretch","items":[{"type":"ActionSet","actions":[{"type":"Action.OpenUrl","title":"Website","style":"positive","url":"' .. Config.Splash.Website_Link .. '"}],"horizontalAlignment":"Center"}]}]},{"type":"ActionSet","actions":[{"type":"Action.OpenUrl","title":"Click to join Badger\'s Discord","style":"destructive","iconUrl":"https://i.gyazo.com/0904b936e8e30d0104dec44924bd2294.gif","url":"https://discord.com/invite/WjB5VFz"}],"horizontalAlignment":"Center"}],"style":"default","bleed":true,"height":"stretch"},{"type":"Image","url":"https://i.gyazo.com/7e896862b14be754ae8bad90b664a350.png","selectAction":{"type":"Action.OpenUrl","url":"https://zap-hosting.com/badger"},"horizontalAlignment":"Center"}]}'
@@ -77,14 +74,14 @@ function GetGuildId (guildName)
   return result
 end
 
-function DiscordRequest(method, endpoint, jsondata, reason)
+function DiscordRequest(method, endpoint, jsondata)
     local data = nil
     PerformHttpRequest("https://discordapp.com/api/"..endpoint, function(errorCode, resultData, resultHeaders)
 		data = {data=resultData, code=errorCode, headers=resultHeaders}
-    end, method, #jsondata > 0 and jsondata or "", {["Content-Type"] = "application/json", ["Authorization"] = FormattedToken, ['X-Audit-Log-Reason'] = reason})
+    end, method, #jsondata > 0 and jsondata or "", {["Content-Type"] = "application/json", ["Authorization"] = FormattedToken})
 
     while data == nil do
-        Citizen.Wait(0)
+		Citizen.Wait(0)
     end
 	
     return data
@@ -101,68 +98,41 @@ function GetRoleIdFromRoleName(name, guild --[[optional]])
 end
 
 function FetchRoleID(roleID2Check, guild --[[optional]])
-    -- You gave me an ID, here it is back to you.
-    if type(roleID2Check) == "number" then return roleID2Check end
-    -- You gave me a non-string, non-number. I can't help you.
-    if type(roleID2Check) ~= "string" then return nil end
+    local checkStr = false
+    local searchGuild = true
+    local tempRoleID = roleID2Check
 
-	if type(roleID2Check) == "string" then 
-		if (tonumber(roleID2Check) ~= nil) then 
-			return tonumber(roleID2Check);
-		end
+    if type(roleID2Check) == "string" then checkStr = true end
+
+    if checkStr then
+	local rolesListFromConfig = Config.RoleList
+
+	for roleRef, roleID in pairs(rolesListFromConfig) do
+	    if roleRef == roleID2Check then
+		tempRoleID = roleID
+		searchGuild = false
+	    end
 	end
 
-    -- It's a string, therefore name -- search config rolelist
-    local rolesListFromConfig = Config.RoleList
-    if rolesListFromConfig[roleID2Check] then
-      -- It's a named role in the config. Here you go!
-      return tonumber(rolesListFromConfig[roleID2Check])
-    end
-    -- Oops, didn't find in config rolelist, search by name in current guild
-    if (guild ~= nil) then 
-        local fetchedRolesList = GetGuildRoleList(guild)
-        if fetchedRolesList[roleID2Check] then
-			-- We found it in the current guild. Here you go!
-	    	return tonumber(fetchedRolesList[roleID2Check])
+	if searchGuild then 
+	    local fetchedRolesList = GetGuildRoleList(guild)
+
+	    for roleName, roleID in pairs(fetchedRolesList) do 
+		if roleName == roleID2Check then 
+		   tempRoleID = roleID
 		end
+	    end
+	end
     end
-    -- Okay, still no luck. Search Main guild for role by name (if main isn't current guild)
-    if GetGuildId(guild) ~= tostring(Config.Guild_ID) then
-    	local mainRolesList = GetGuildRoleList()
-    	if mainRolesList[roleID2Check] then
-        	-- We found it in the current guild. Here you go!
-        	return tonumber(mainRolesList[roleID2Check])
-      	end
-    end
-    -- Big oops, didn't find in current guild, or main guild. Search by name in all guilds!
-    --[[
-    -- Due to a security flaw in the below code, it was redacted for good reason...
-    if (Config.Multiguild and not roleFound) then
-      for guildName, guildID in pairs(Config.Guilds) do
-        local thisRolesList = GetGuildRoleList(guildName)
-        if thisRolesList[roleID2Check] then
-          -- We found it in the current guild. Here you go!
-          return tonumber(thisRolesList[roleID2Check])
-        end
-      end
-    end
-    ]]--
-    return nil -- Sorry, couldn't find anywhere
+
+    return tonumber(tempRoleID)
 end
 
 function CheckEqual(role1, role2, guild --[[optional]])
-    local roleID1 = FetchRoleID(role1, guild);
-    local roleID2 = FetchRoleID(role2, guild);
-	if (Config.DebugScript) then 
-		print("[Badger_Discord_API] role1: " .. tostring(role1));
-		print("[Badger_Discord_API] role2: " .. tostring(role2));
-		print("[Badger_Discord_API] roleID1 type: " .. type(roleID1));
-		print("[Badger_Discord_API] roleID2 type: " .. type(roleID2));
-		print("[Badger_Discord_API] roleID1: " .. tostring(roleID1));
-		print("[Badger_Discord_API] roleID2: " .. tostring(roleID2));
-	end
-    if (type(roleID1) ~= "nil" and type(roleID2) ~= "nil") and roleID1 == roleID2 then 
-		return true
+    local roleID1 = FetchRoleID(role1, guild)
+    local roleID2 = FetchRoleID(role2, guild)
+    if roleID1 == roleID2 and type(roleID1) ~= "nil" then 
+	return true
     end
 
     return false
@@ -409,14 +379,8 @@ end
 
 local recent_role_cache = {}
 
-function ClearCache(discordId) 
-	if (discordId ~= nil) then 
-		recent_role_cache[discordId] = {};
-	end
-end
-
 function GetDiscordRoles(user, guild --[[optional]])
-  local discordId = nil
+	local discordId = nil
   local guildId = GetGuildId(guild)
 	for _, id in ipairs(GetPlayerIdentifiers(user)) do
 		if string.match(id, "discord:") then
@@ -436,7 +400,7 @@ function GetDiscordRoles(user, guild --[[optional]])
 			local roles = data.roles
 			local found = true
 			if Config.CacheDiscordRoles then
-        		recent_role_cache[discordId] = recent_role_cache[discordId] or {}
+        recent_role_cache[discordId] = recent_role_cache[discordId] or {}
 				recent_role_cache[discordId][guildId] = roles
 				Citizen.SetTimeout(((Config.CacheDiscordRolesTime or 60)*1000), function() recent_role_cache[discordId][guildId] = nil end)
 			end
@@ -480,7 +444,7 @@ function GetDiscordNickname(user, guild --[[optional]])
 	return nil;
 end
 
-function SetNickname(user, nickname, reason)
+function SetNickname(user, nickname)
 	local discordId = nil
 	for _, id in ipairs(GetPlayerIdentifiers(user)) do
 		if string.match(id, 'discord:') then
@@ -492,88 +456,7 @@ function SetNickname(user, nickname, reason)
 	if discordId then
 		local name = nickname or ""
 		local endpoint = ("guilds/%s/members/%s"):format(Config.Guild_ID, discordId)
-		local member = DiscordRequest("PATCH", endpoint, json.encode({nick = tostring(name)}), reason)
-		if member.code ~= 200 then
-			print("[Badger_Perms] ERROR: Code 200 was not reached. Error Code: " .. error_codes_defined[member.code])
-		end
-	end
-end
-
-function AddRole(user, roleId, reason)
-	local discordId = nil
-	for _, id in ipairs(GetPlayerIdentifiers(user)) do
-		if string.match(id, 'discord:') then
-			discordId = string.gsub(id, 'discord:', '')
-			break
-		end
-	end
-
-	if discordId then
-		local roles = GetDiscordRoles(user) or {}
-		local endpoint = ("guilds/%s/members/%s"):format(Config.Guild_ID, discordId)
-		table.insert(roles, roleId)
-		local member = DiscordRequest("PATCH", endpoint, json.encode({roles = roles}), reason)
-		if member.code ~= 200 then
-			print("[Badger_Perms] ERROR: Code 200 was not reached. Error Code: " .. error_codes_defined[member.code])
-		end
-	end
-end
-
-function RemoveRole(user, roleId, reason)
-	local discordId = nil
-	for _, id in ipairs(GetPlayerIdentifiers(user)) do
-		if string.match(id, 'discord:') then
-			discordId = string.gsub(id, 'discord:', '')
-			break
-		end
-	end
-
-	if discordId then
-		local roles = GetDiscordRoles(user) or {}
-		local endpoint = ("guilds/%s/members/%s"):format(Config.Guild_ID, discordId)
-
-		for k, v in pairs(roles) do
-			if v == roleId then
-				roles[k] = nil
-			end
-		end
-
-		local member = DiscordRequest("PATCH", endpoint, json.encode({roles = roles}), reason)
-		if member.code ~= 200 then
-			print("[Badger_Perms] ERROR: Code 200 was not reached. Error Code: " .. error_codes_defined[member.code])
-		end
-	end
-end
-
-function SetRoles(user, roleList, reason)
-	local discordId = nil
-	for _, id in ipairs(GetPlayerIdentifiers(user)) do
-		if string.match(id, 'discord:') then
-			discordId = string.gsub(id, 'discord:', '')
-			break
-		end
-	end
-
-	if discordId then
-		local endpoint = ("guilds/%s/members/%s"):format(Config.Guild_ID, discordId)
-		local member = DiscordRequest("PATCH", endpoint, json.encode({roles = roleList}), reason)
-		if member.code ~= 200 then
-			print("[Badger_Perms] ERROR: Code 200 was not reached. Error Code: " .. error_codes_defined[member.code])
-		end
-	end
-end
-
-function ChangeDiscordVoice(user, voice, reason)
-	local discordId = nil
-	for _, id in ipairs(GetPlayerIdentifiers(user)) do
-		if string.match(id, "discord:") then
-			discordId = string.gsub(id, "discord:", "")
-		end
-	end
-
-	if discordId then
-		local endpoint = ("guilds/%s/members/%s"):format(Config.Guild_ID, discordId)
-		local member = DiscordRequest("PATCH", endpoint, json.encode({channel_id = voice}), reason)
+		local member = DiscordRequest("PATCH", endpoint, json.encode({nick = tostring(name)}))
 		if member.code ~= 200 then
 			print("[Badger_Perms] ERROR: Code 200 was not reached. Error Code: " .. error_codes_defined[member.code])
 		end
